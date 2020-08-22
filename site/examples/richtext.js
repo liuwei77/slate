@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import React, { useCallback, useMemo, useState } from 'react'
 import isHotkey from 'is-hotkey'
 import { Editable, withReact, useSlate, Slate } from 'slate-react'
@@ -5,6 +6,9 @@ import { Editor, Transforms, createEditor } from 'slate'
 import { withHistory } from 'slate-history'
 
 import { Button, Icon, Toolbar } from '../components'
+
+import * as _ from 'lodash'
+import { PathRef, PointRef, RangeRef, NORMALIZING } from 'slate'
 
 const HOTKEYS = {
   'mod+b': 'bold',
@@ -20,6 +24,70 @@ const RichTextExample = () => {
   const renderElement = useCallback(props => <Element {...props} />, [])
   const renderLeaf = useCallback(props => <Leaf {...props} />, [])
   const editor = useMemo(() => withHistory(withReact(createEditor())), [])
+
+  const copySelection = (e1, e2) => {
+    if (!e1.selection) {
+      e2.selection = null
+    } else {
+      e2.selection = {
+        anchor: {
+          path: e1.selection.anchor.path.slice(),
+          offset: e1.selection.anchor.offset,
+        },
+        focus: {
+          path: e1.selection.focus.path.slice(),
+          offset: e1.selection.focus.offset,
+        },
+      }
+    }
+  }
+
+  const copyChildren = (e1, e2) => {
+    e2.children = []
+    e1.children.forEach(node => {
+      e2.children.push(node)
+    })
+  }
+
+  const base = createEditor()
+  base.children = _.cloneDeep(value)
+  copySelection(editor, base)
+
+  base.onChange = () => {
+    editor.onChange()
+    editor.operations = []
+  }
+
+  editor.apply = op => {
+    copySelection(editor, base)
+
+    for (const ref of Editor.pathRefs(editor)) {
+      PathRef.transform(ref, op)
+    }
+
+    for (const ref of Editor.pointRefs(editor)) {
+      PointRef.transform(ref, op)
+    }
+
+    for (const ref of Editor.rangeRefs(editor)) {
+      RangeRef.transform(ref, op)
+    }
+
+    const value = Editor.isNormalizing(editor)
+    NORMALIZING.set(base, value)
+
+    base.apply(op)
+
+    copyChildren(base, editor)
+
+    if (op.type === 'set_selection') {
+      editor.marks = null
+    }
+
+    copySelection(base, editor)
+
+    editor.operations.push(op)
+  }
 
   return (
     <Slate editor={editor} value={value} onChange={value => setValue(value)}>
