@@ -19,39 +19,34 @@ const HOTKEYS = {
 
 const LIST_TYPES = ['numbered-list', 'bulleted-list']
 
-const RichTextExample = () => {
-  const [value, setValue] = useState(initialValue)
-  const renderElement = useCallback(props => <Element {...props} />, [])
-  const renderLeaf = useCallback(props => <Leaf {...props} />, [])
-  const editor = useMemo(() => withHistory(withReact(createEditor())), [])
-
-  const copySelection = (e1, e2) => {
-    if (!e1.selection) {
-      e2.selection = null
-    } else {
-      e2.selection = {
-        anchor: {
-          path: e1.selection.anchor.path.slice(),
-          offset: e1.selection.anchor.offset,
-        },
-        focus: {
-          path: e1.selection.focus.path.slice(),
-          offset: e1.selection.focus.offset,
-        },
-      }
+const copySelection = (e1, e2) => {
+  if (!e1.selection) {
+    e2.selection = null
+  } else {
+    e2.selection = {
+      anchor: {
+        path: e1.selection.anchor.path.slice(),
+        offset: e1.selection.anchor.offset,
+      },
+      focus: {
+        path: e1.selection.focus.path.slice(),
+        offset: e1.selection.focus.offset,
+      },
     }
   }
+}
 
-  const copyChildren = (e1, e2) => {
-    e2.children = []
-    e1.children.forEach(node => {
-      e2.children.push(node)
-    })
-  }
+const copyChildren = (e1, e2) => {
+  e2.children = []
+  e1.children.forEach(node => {
+    e2.children.push(node)
+  })
+}
 
-  const base = createEditor()
-  base.children = _.cloneDeep(value)
-  copySelection(editor, base)
+const withController = base => {
+  const editor = createEditor()
+
+  editor.base = base
 
   base.onChange = () => {
     editor.onChange()
@@ -88,6 +83,21 @@ const RichTextExample = () => {
 
     editor.operations.push(op)
   }
+
+  return editor
+}
+
+const RichTextExample = () => {
+  const [value, setValue] = useState(initialValue)
+  const renderElement = useCallback(props => <Element {...props} />, [])
+  const renderLeaf = useCallback(props => <Leaf {...props} />, [])
+  // const editor = useMemo(() => withHistory(withReact(createEditor())), [])
+  const editor = useMemo(
+    () => withHistory(withReact(withController(createEditor()))),
+    []
+  )
+
+  editor.base.children = _.cloneDeep(value)
 
   return (
     <Slate editor={editor} value={value} onChange={value => setValue(value)}>
