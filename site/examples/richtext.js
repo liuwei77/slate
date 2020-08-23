@@ -8,7 +8,7 @@ import { withHistory } from 'slate-history'
 import { Button, Icon, Toolbar } from '../components'
 
 import * as _ from 'lodash'
-import { PathRef, PointRef, RangeRef, NORMALIZING } from 'slate'
+import { PathRef, PointRef, RangeRef } from 'slate'
 
 const HOTKEYS = {
   'mod+b': 'bold',
@@ -53,6 +53,14 @@ const withController = base => {
     editor.operations = []
   }
 
+  const { normalizeNode } = base
+  base.normalizeNode = entry => {
+    if (!Editor.isNormalizing(editor)) {
+      return
+    }
+    normalizeNode(entry)
+  }
+
   editor.apply = op => {
     copySelection(editor, base)
 
@@ -67,9 +75,6 @@ const withController = base => {
     for (const ref of Editor.rangeRefs(editor)) {
       RangeRef.transform(ref, op)
     }
-
-    const value = Editor.isNormalizing(editor)
-    NORMALIZING.set(base, value)
 
     base.apply(op)
 
